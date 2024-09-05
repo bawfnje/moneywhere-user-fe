@@ -1,9 +1,11 @@
 export default {
+  'account': '账户',
   'account.type': '账户类型',
   'checking.account': '活期账户',
   'credit.account': '信用账户',
   'debt.account': '贷款账户',
   'asset.account': '资产账户',
+  'account.rate': '汇率',
 
   'account.label.balance': '当前余额',
   'account.label.currencyCode': '币种',
@@ -22,5 +24,11 @@ export default {
   'total.balance': '总余额',
   'total.limit': '总额度',
   'total.remain.limit': '总剩余额度',
+
+  'account.refresh.currency': '刷新汇率',
+  'account.audit': '对账',
+  'currency.description': '描述',
+  'currency.base': '基准币种',
+  'currency.update': '修改汇率',
 
 }

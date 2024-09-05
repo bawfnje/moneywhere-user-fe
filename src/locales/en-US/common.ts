@@ -1,8 +1,11 @@
 export default {
+  'action.title': '{action} {title}',
   'operation': 'Actions',
   'add': 'New ',
   'update': 'Update ',
   'delete': 'Delete',
+  'trash': 'Trash',
+  'trash.tooltip': 'Move to Trash',
   'recover': 'Recover',
   'delete.permanent': 'Delete Permanently',
   'reset': 'Reset',
@@ -15,7 +18,11 @@ export default {
   'null': 'Null',
   'yes': 'Yes',
   'no': 'No',
-  'convertCurrency': 'Convert To',
+  'have': 'Have',
+  'none': 'None',
+  'sort': 'Sort',
+  'convertCurrency': 'To {code}',
+  'confirm.msg': 'Are you sure?',
 
   'label.name': 'Name',
   'label.canExpense': 'Can Expense',
@@ -24,7 +31,7 @@ export default {
   'label.enable': 'Enable',
   'label.notes': 'Notes',
 
-  'delete.confirm': 'This action can\'t redo，Are you sure to delete {name}?',
+  'delete.confirm': 'Are you sure to delete this item permanently?',
   'click.edit': 'Click to Edit',
 
   'today': 'Today',
@@ -44,7 +51,5 @@ export default {
   'rules.required': 'This field is required',
 
   'placeholder.can.negative': 'Negative numbers can be entered',
-
-  'label.tab.deleted': 'Deleted',
 
 };

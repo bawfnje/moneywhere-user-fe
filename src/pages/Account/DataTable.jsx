@@ -2,8 +2,8 @@ import { useState } from 'react';
 import {Alert, Button, Form, Input, Space} from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import { ProTable } from '@ant-design/pro-components';
-import {useModel, useRequest} from '@umijs/max';
-import {queryAll, query, toggle, removeSoft} from '@/services/common';
+import {useModel, useRequest, history} from '@umijs/max';
+import {queryAll, query1, toggle} from '@/services/common';
 import {
   statistics,
   toggleCanExpense,
@@ -12,27 +12,33 @@ import {
   toggleCanTransferTo,
   toggleInclude,
 } from '@/services/account';
+import { refresh } from "@/services/currency";
 import MySwitch from '@/components/MySwitch';
+import TrashButton from '@/components/TrashButton';
 import {selectSingleProp, tableProp} from '@/utils/prop';
 import { tableSortFormat } from '@/utils/util';
 import ActionForm from './ActionForm';
+import NotesForm from './NotesForm';
 import AdjustForm from './AdjustForm';
 import t from '@/utils/i18n';
 
 
 export default ({ type, actionRef }) => {
 
+  const { initialState } = useModel('@@initialState');
   const { show } = useModel('modal');
   const [statisticsData, setStatisticsData] = useState([0, 0, 0]);
 
   const { data : currencyOptions = [], loading : currencyLoading, run : loadCurrencies} = useRequest(() => queryAll('currencies'), { manual: true });
 
+  const { loading : refreshCurrencyLoading, run : runRefreshCurrency} = useRequest(refresh, { manual: true });
+
   function successHandler() {
     actionRef.current?.reload();
   }
 
-  const deleteHandler = async (record) => {
-    await removeSoft('accounts', record.id);
+  const trashHandler = async (record) => {
+    await toggle('accounts', record.id);
     successHandler();
   };
 
@@ -42,6 +48,10 @@ export default ({ type, actionRef }) => {
 
   const updateHandler = (record) => {
     show(<ActionForm type={type} actionRef={actionRef} />, 2, record);
+  };
+
+  const notesUpdateHandler = (record) => {
+    show(<NotesForm actionRef={actionRef} />, 2, record);
   };
 
   const adjustHandler = (record) => {
@@ -87,6 +97,12 @@ export default ({ type, actionRef }) => {
           onFocus: loadCurrencies,
           labelInValue: false,
         },
+      },
+      {
+        title: t('sort'),
+        dataIndex: 'sort',
+        sorter: true,
+        hideInSearch: true,
       },
     ];
 
@@ -139,6 +155,35 @@ export default ({ type, actionRef }) => {
     }
 
     columns = columns.concat([
+      {
+        title: t('operation'),
+        align: 'center',
+        hideInSearch: true,
+        render: (_, record) => [
+          <Button type="link" onClick={() => {
+            history.push(
+              {
+                pathname: '/statement',   //要跳转的路由
+              },
+              {
+                account: record
+              }
+            )
+          }}>
+            {t('account.audit')}
+          </Button>,
+          <Button type="link" onClick={() => updateHandler(record)}>
+            {t('update')}
+          </Button>,
+          <TrashButton onClick={() => trashHandler(record)} />,
+          <Button type="link" onClick={() => adjustHandler(record)}>
+            {t('adjust.balance')}
+          </Button>,
+          <Button type="link" onClick={() => notesUpdateHandler(record)}>
+            {t('label.notes')}
+          </Button>,
+        ],
+      },
       {
         title: t('account.label.include'),
         dataIndex: 'include',
@@ -234,51 +279,16 @@ export default ({ type, actionRef }) => {
           />
         ),
       },
-      {
-        title: t('label.enable'),
-        dataIndex: 'enable',
-        sorter: true,
-        valueType: 'select',
-        fieldProps: {
-          options: [
-            { label: t('yes'), value: true },
-            { label: t('no'), value: false },
-          ],
-        },
-        render: (_, record) => (
-          <MySwitch
-            value={record.enable}
-            request={() => toggle('accounts', record.id)}
-            onSuccess={successHandler}
-          />
-        ),
-      },
-      {
-        title: t('operation'),
-        align: 'center',
-        hideInSearch: true,
-        render: (_, record) => [
-          <Button type="link" onClick={() => updateHandler(record)}>
-            {t('update')}
-          </Button>,
-          <Button type="link" onClick={() => deleteHandler(record)}>
-            {t('delete')}
-          </Button>,
-          <Button type="link" onClick={() => adjustHandler(record)}>
-            {t('adjust.balance')}
-          </Button>,
-        ],
-      },
     ]);
 
     return columns;
   }
 
   function extraRender() {
-    let message = `${t('total.balance')}: ${statisticsData[0]}`;
+    let message = `${t('total.balance')}(${initialState.currentGroup.defaultCurrencyCode}): ${statisticsData[0]}`;
     if (type === 'CREDIT' || type === 'DEBT') {
-      const totalLimit = `${t('total.limit')}: ${statisticsData[1]}`;
-      const totalRemain = `${t('total.remain.limit')}: ${statisticsData[2]}`;
+      const totalLimit = `${t('total.limit')}(${initialState.currentGroup.defaultCurrencyCode}): ${statisticsData[1]}`;
+      const totalRemain = `${t('total.remain.limit')}(${initialState.currentGroup.defaultCurrencyCode}): ${statisticsData[2]}`;
       message = (
         <span>
           {message}&nbsp;&nbsp;&nbsp;&nbsp;{totalLimit}&nbsp;&nbsp;&nbsp;&nbsp;{totalRemain}
@@ -288,7 +298,6 @@ export default ({ type, actionRef }) => {
     return <Alert type="info" showIcon message={message} />;
   }
 
-  const { initialState } = useModel('@@initialState');
   function expandedRowRender(record) {
     let notesItem = null;
     if (record.notes) {
@@ -310,8 +319,8 @@ export default ({ type, actionRef }) => {
     if (initialState.currentGroup.defaultCurrencyCode !== record.currencyCode) {
       currencyItem = (
         <span>
-          {t('convertCurrency') + initialState.currentGroup.defaultCurrencyCode}:{' '}
-          {record.convertedBalance}
+          {t('convertCurrency', {code: initialState.currentGroup.defaultCurrencyCode})}: {record.convertedBalance},&nbsp;&nbsp;&nbsp;
+          {t('account.rate')}：{record.rate}
         </span>
       );
     }
@@ -337,6 +346,9 @@ export default ({ type, actionRef }) => {
         actionRef={actionRef}
         tableExtraRender={extraRender}
         toolBarRender={() => [
+          <Button type="primary" onClick={runRefreshCurrency} loading={refreshCurrencyLoading}>
+            {t('account.refresh.currency')}
+          </Button>,
           <Button type="primary" onClick={addHandler}>
             <PlusOutlined />
             {t('add')}
@@ -352,7 +364,7 @@ export default ({ type, actionRef }) => {
           statistics(params).then((res) => {
             setStatisticsData(res.data);
           });
-          return query('accounts', { ...params, ...{ sort: tableSortFormat(sort) } });
+          return query1('accounts', { ...params, ...{ sort: tableSortFormat(sort) } });
         }}
       />
     </>

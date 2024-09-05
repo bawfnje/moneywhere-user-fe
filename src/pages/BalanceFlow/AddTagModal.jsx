@@ -15,7 +15,6 @@ export default (props) => {
 
   const { data : tags = [], loading : tagsLoading, run : loadTags} = useRequest(() => queryAll('tags', {
     'bookId': book.id,
-    'keeps': [],
   }), { manual: true });
 
   return (
@@ -31,14 +30,14 @@ export default (props) => {
         <Button icon={<PlusOutlined />} type="link">{t('add')}</Button>
       }
       onOpenChange={open => {
-        if (open) {
+        setTimeout(() => {
           formRef.current?.resetFields();
           formRef.current?.setFieldsValue({
             canExpense: type === 'EXPENSE',
             canIncome: type === 'INCOME',
             canTransfer: type === 'TRANSFER',
           });
-        }
+        }, 50)
       }}
       onFinish={async (values) => {
         let form = JSON.parse(JSON.stringify(values));

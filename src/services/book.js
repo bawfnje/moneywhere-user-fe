@@ -9,16 +9,41 @@ export async function createByTemplate(data) {
   });
 }
 
-export async function exportFlow(id) {
-  return request(`${prefix}/${id}/export`, {
+export async function copy(data) {
+  return request(`${prefix}/copy`, {
+    method: 'POST',
+    data: data,
+  });
+}
+
+export async function exportFlow(id, offset) {
+  return request(`${prefix}/${id}/export?timeZoneOffset=${offset}`, {
     method: 'GET',
     responseType: 'blob',
   });
 }
 
-export async function queryBookTemplates(params) {
+export async function queryBookTemplates(lang) {
   return request('book-templates', {
     method: 'GET',
-    params: params,
+    params: {
+      lang: lang
+    },
   });
 }
+
+export async function allBookTemplates(lang) {
+  return request('book-templates/all', {
+    method: 'GET',
+    params: {
+      lang: lang
+    },
+  });
+}
+
+
+
+
+
+
+

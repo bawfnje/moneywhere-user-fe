@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ProFormText, ProFormTextArea, ProFormTreeSelect } from '@ant-design/pro-components';
+import { ProFormText, ProFormTextArea, ProFormTreeSelect, ProFormDigit } from '@ant-design/pro-components';
 import {useModel, useRequest} from '@umijs/max';
 import MyModalForm from '@/components/MyModalForm';
 import {create, update, queryAll} from '@/services/common';
@@ -16,7 +16,6 @@ export default ({ type, actionRef }) => {
   const { data : categories = [], loading : categoriesLoading, run : loadCategories} = useRequest(() => queryAll('categories', {
     'bookId': bookId,
     'type': type,
-    'keeps': action === 1 ? [] : currentRow.pId,
   }), { manual: true });
   useEffect(() => {
     if (visible) {
@@ -28,7 +27,7 @@ export default ({ type, actionRef }) => {
   useEffect(() => {
     if (action === 1) {
       setInitialValues({
-        pId: currentRow,
+        parent: currentRow,
       });
     } else if (action === 2) {
       setInitialValues({ ...currentRow });
@@ -42,7 +41,8 @@ export default ({ type, actionRef }) => {
   const requestHandler = async (values) => {
     let form = JSON.parse(JSON.stringify(values));
     // 修改是pid为数值
-    form.pId = values.pId?.value;
+    form.pId = values.parent?.value;
+    delete form.parent;
     if (action === 1) {
       await create('categories', {...form, ...{ bookId: bookId, type: type }});
     } else if (action === 2) {
@@ -69,7 +69,7 @@ export default ({ type, actionRef }) => {
       initialValues={initialValues}
     >
       <ProFormTreeSelect
-        name="pId"
+        name="parent"
         label={t('label.parent.category')}
         fieldProps={{
           ...treeSelectSingleProp,
@@ -79,6 +79,7 @@ export default ({ type, actionRef }) => {
       />
       <ProFormText name="name" label={t('label.name')} rules={requiredRules()} />
       <ProFormTextArea name="notes" label={t('label.notes')} />
+      <ProFormDigit name="sort" label={t('sort')} />
     </MyModalForm>
   );
 };

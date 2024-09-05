@@ -1,6 +1,7 @@
 import {useEffect, useState} from 'react';
 import {useModel, useRequest} from '@umijs/max';
 import {
+  ProFormDigit,
   ProFormSelect,
   ProFormText,
   ProFormTextArea,
@@ -66,8 +67,8 @@ export default () => {
     form.defaultIncomeAccountId = form.defaultIncomeAccountId?.id;
     form.defaultTransferFromAccountId = form.defaultTransferFromAccountId?.id;
     form.defaultTransferToAccountId = form.defaultTransferToAccountId?.id;
-    form.defaultExpenseCategoryId = form.defaultExpenseCategoryId?.id;
-    form.defaultIncomeCategoryId = form.defaultIncomeCategoryId?.id;
+    form.defaultExpenseCategoryId = form.defaultExpenseCategoryId?.value;
+    form.defaultIncomeCategoryId = form.defaultIncomeCategoryId?.value;
     if (action !== 2) {
       await create('books', form);
     } else {
@@ -164,6 +165,7 @@ export default () => {
           }}
         />
         <ProFormTextArea name="notes" label={t('label.notes')} />
+        <ProFormDigit name="sort" label={t('sort')} />
       </MyModalForm>
     </>
   );

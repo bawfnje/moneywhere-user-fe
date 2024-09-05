@@ -1,4 +1,5 @@
 import moment from 'moment';
+import { getLocale } from 'umi';
 import t from '@/utils/i18n';
 
 // https://stackoverflow.com/questions/21148419/efficiently-rename-re-map-javascript-json-object-keys-within-array-of-objects
@@ -132,3 +133,49 @@ export function datePickerRanges() {
     [t('last.year')]: [moment().add(-1, 'years').startOf('year'), moment().add(-1, 'years').endOf('year')],
   }
 }
+
+export function timeZoneOffset() {
+  return (new Date().getTimezoneOffset()/60) * (-1);
+}
+
+export function dateFormatStr1() {
+  const locale = getLocale();
+  if (locale === 'en-US') {
+    return 'MM/DD/YYYY HH:mm';
+  } else if (locale === 'zh-CN') {
+    return 'YYYY-MM-DD HH:mm';
+  }
+  return 'MM/DD/YYYY HH:mm';
+}
+
+export function dateFormatStr2() {
+  const locale = getLocale();
+  if (locale === 'en-US') {
+    return 'MM/DD/YYYY';
+  } else if (locale === 'zh-CN') {
+    return 'YYYY-MM-DD';
+  }
+  return 'MM/DD/YYYY';
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

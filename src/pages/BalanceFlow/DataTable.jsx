@@ -1,46 +1,86 @@
-import {useState} from 'react';
-import { Alert, Button, Dropdown, Form, Input, Modal, Space, Tag, Tooltip } from 'antd';
+import {useEffect, useRef, useState} from 'react';
+import {Alert, Button, Dropdown, Form, Input, Modal, Space, Switch, Tag, Tooltip} from 'antd';
 import { DownOutlined, PlusOutlined } from '@ant-design/icons';
 import { ProTable } from '@ant-design/pro-components';
-import {useModel, useRequest} from '@umijs/max';
+import {useModel, useRequest, history} from '@umijs/max';
 import moment from 'moment';
 import { confirm, statistics } from '@/services/flow';
 import { queryAll, query, remove } from '@/services/common';
 import {selectMultipleProp, selectSingleProp, tableProp, treeSelectMultipleProp} from '@/utils/prop';
-import {datePickerRanges, tableSortFormat} from '@/utils/util';
+import {dateFormatStr1, datePickerRanges, tableSortFormat} from '@/utils/util';
 import ActionForm from './ActionForm';
 import AdjustForm from '../Account/AdjustForm';
 import TagForm from './TagForm';
+import FileUploadModal from './FileUploadModal';
 import t from '@/utils/i18n';
 
 export default () => {
 
   const { initialState } = useModel('@@initialState');
   const { actionRef } = useModel('BalanceFlow.model');
+  const formRef = useRef();
   const { show } = useModel('modal');
+
+  const [categoryTreeCheckStrictly, setCategoryTreeCheckStrictly] = useState(false);
+  const [tagTreeCheckStrictly, setTagTreeCheckStrictly] = useState(false);
+
+  // 对账点击过来的
+  useEffect(() => {
+    if (history.location.state?.account) {
+      loadAccounts();
+      formRef.current?.setFieldsValue({
+        account: history.location.state.account.value,
+        // 对账查所有账本
+        book: null,
+      });
+      formRef.current?.submit();
+      // 刷新清空
+      window.history.replaceState(null, '')
+    }
+  }, [history.location.state?.account]);
 
   const [currentBook, setCurrentBook] = useState(initialState.currentBook);
   const [type, setType] = useState();
 
   const { data : accounts = [], loading : accountsLoading, run : loadAccounts} = useRequest(() => queryAll('accounts'), { manual: true });
 
-  const { data : categories = [], loading : categoriesLoading, run : loadCategories} = useRequest(() => queryAll('categories', {
-    'bookId': currentBook?.id,
-    'type': type,
-  }), { manual: true });
+  const { data : categories = [], loading : categoriesLoading, run : loadCategories} = useRequest(() => {
+    if (type === 'EXPENSE' || type === 'INCOME') {
+      return queryAll('categories', {
+        'bookId': currentBook?.id,
+        'type': type,
+      });
+    }
+    if (type === 'TRANSFER' || type === 'ADJUST') {
+      return Promise.resolve([]);
+    }
+    return queryAll('categories', {
+      'bookId': currentBook?.id,
+    });
+  }, { manual: true });
 
-  const { data : tags = [], loading : tagsLoading, run : loadTags} = useRequest(() => queryAll('tags', {
-    'bookId': currentBook?.id,
-    'canExpense': type === 'EXPENSE' ? true : null,
-    'canIncome': type === 'INCOME' ? true : null,
-    'canTransfer': type === 'TRANSFER' ? true : null,
-  }), { manual: true });
+  const { data : tags = [], loading : tagsLoading, run : loadTags} = useRequest(() => {
+    if (type === 'ADJUST') {
+      return Promise.resolve([]);
+    }
+    return queryAll('tags', {
+      'bookId': currentBook?.id,
+      'canExpense': type === 'EXPENSE' ? true : null,
+      'canIncome': type === 'INCOME' ? true : null,
+      'canTransfer': type === 'TRANSFER' ? true : null,
+    });
+  }, { manual: true });
 
-  const { data : payees = [], loading : payeesLoading, run : loadPayees} = useRequest(() => queryAll('payees', {
-    'bookId': currentBook?.id,
-    'canExpense': type === 'EXPENSE' ? true : null,
-    'canIncome': type === 'INCOME' ? true : null,
-  }), { manual: true });
+  const { data : payees = [], loading : payeesLoading, run : loadPayees} = useRequest(() => {
+    if (type === 'TRANSFER' || type === 'ADJUST') {
+      return Promise.resolve([]);
+    }
+    return queryAll('payees', {
+      'bookId': currentBook?.id,
+      'canExpense': type === 'EXPENSE' ? true : null,
+      'canIncome': type === 'INCOME' ? true : null,
+    });
+  }, { manual: true });
 
   const { data : books = [], loading: booksLoading, run: loadBooks } = useRequest(() => queryAll('books'), { manual: true });
 
@@ -58,12 +98,18 @@ export default () => {
     }
   };
 
+  const confirmMsg = t('confirm.msg');
   const confirmHandler = async (record) => {
-    await confirm(record.id);
-    successHandler();
+    Modal.confirm({
+      title: confirmMsg,
+      onOk: async () => {
+        await confirm(record.id);
+        successHandler();
+      }
+    });
   };
 
-  const messageDeleteConfirm = t('delete.confirm', { name: '' });
+  const messageDeleteConfirm = t('delete.confirm');
   const messageDeleteConfirmBalance = t('delete.confirm.balance');
   const deleteHandler = (record) => {
     Modal.confirm({
@@ -92,6 +138,10 @@ export default () => {
         onClick: () => confirmHandler(record)
       },
       {
+        label: t('flow.operation.file'),
+        onClick: () => show(<FileUploadModal flowId={record.id} />)
+      },
+      {
         label: t('delete'),
         onClick: () => deleteHandler(record)
       },
@@ -103,6 +153,7 @@ export default () => {
       title: t('flow.label.book'),
       dataIndex: 'book',
       sorter: true,
+      order: 20,
       render: (_, record) => record.book.name,
       hideInTable: false,
       valueType: 'select',
@@ -124,8 +175,17 @@ export default () => {
     {
       title: t('flow.label.type'),
       dataIndex: 'type',
-      render: (_, record) => record.typeName,
+      render: (_, record) => {
+        if (record.type === 'EXPENSE') {
+          return <span style={{color: "green"}}>{record.typeName}</span>;
+        }
+        if (record.type === 'INCOME') {
+          return <span style={{color: "red"}}>{record.typeName}</span>;
+        }
+        return record.typeName;
+      },
       sorter: true,
+      order: 20,
       align: 'center',
       valueType: 'select',
       fieldProps: {
@@ -164,7 +224,7 @@ export default () => {
       dataIndex: 'createTime',
       sorter: true,
       align: 'center',
-      render: (_, record) => moment(record.createTime).format('YYYY-MM-DD HH:mm'),
+      render: (_, record) => moment(record.createTime).format(dateFormatStr1()),
       valueType: 'dateRange',
       search: {
         transform: (value) => ({
@@ -181,6 +241,7 @@ export default () => {
       title: t('flow.label.account'),
       dataIndex: 'account',
       sorter: true,
+      order: 19,
       render: (_, record) => record.accountName,
       valueType: 'select',
       fieldProps: {
@@ -202,6 +263,7 @@ export default () => {
         onFocus: loadCategories,
         options: categories,
         loading: categoriesLoading,
+        treeCheckStrictly: categoryTreeCheckStrictly,
       },
     },
     {
@@ -215,6 +277,7 @@ export default () => {
         ...treeSelectMultipleProp,
         options: tags,
         loading: tagsLoading,
+        treeCheckStrictly: tagTreeCheckStrictly,
       },
     },
     {
@@ -252,6 +315,16 @@ export default () => {
       valueEnum: {
         true: { text: t('yes'), status: 'Success' },
         false: { text: t('no'), status: 'Error' },
+      },
+    },
+    {
+      title: t('flow.search.has.file'),
+      dataIndex: 'hasFile',
+      valueType: 'select',
+      hideInTable: true,
+      valueEnum: {
+        true: { text: t('have'), status: 'Success' },
+        false: { text: t('none'), status: 'Error' },
       },
     },
     {
@@ -315,7 +388,7 @@ export default () => {
     if (record.needConvert) {
       currencyItem = (
         <span>
-          {t('convertCurrency') + record.convertCode}: {record.convertedAmount}
+          {t('convertCurrency', {code: record.convertCode})}: {record.convertedAmount}
         </span>
       );
     }
@@ -333,9 +406,9 @@ export default () => {
   }
 
   function extraRender() {
-    const total1 = `${t('flow.total.expense')}: ${statisticsData[0]}`;
-    const total2 = `${t('flow.total.income')}: ${statisticsData[1]}`;
-    const total3 = `${t('flow.total.surplus')}: ${statisticsData[2]}`;
+    const total1 = `${t('flow.total.expense')}(${initialState.currentBook.defaultCurrencyCode}): ${statisticsData[0]}`;
+    const total2 = `${t('flow.total.income')}(${initialState.currentBook.defaultCurrencyCode}): ${statisticsData[1]}`;
+    const total3 = `${t('flow.total.surplus')}(${initialState.currentBook.defaultCurrencyCode}): ${statisticsData[2]}`;
     const message = (
       <span>
         {total1}&nbsp;&nbsp;&nbsp;&nbsp;{total2}&nbsp;&nbsp;&nbsp;&nbsp;{total3}
@@ -346,9 +419,19 @@ export default () => {
 
   return (
     <>
+      <Form layout="inline" style={{background: "white", padding: "24px 24px 0 24px"}}>
+        <Form.Item label={t('flow.search.label.category.check.strictly')}>
+          <Switch checked={!categoryTreeCheckStrictly} onChange={(checked) => setCategoryTreeCheckStrictly(!checked)} />
+        </Form.Item>
+        <Form.Item label={t('flow.search.label.tag.check.strictly')}>
+          <Switch checked={!tagTreeCheckStrictly} onChange={(checked) => setTagTreeCheckStrictly(!checked)} />
+        </Form.Item>
+      </Form>
       <ProTable
         {...tableProp}
+        defaultSize="small"
         actionRef={actionRef}
+        formRef={formRef}
         tableExtraRender={extraRender}
         toolBarRender={() => [
           <Button type="primary" onClick={() => show(<ActionForm />)}>

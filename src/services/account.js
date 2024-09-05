@@ -5,7 +5,12 @@ const prefix = 'accounts';
 export async function statistics(params) {
   return request(`${prefix}/statistics`, {
     method: 'GET',
-    params: params,
+    params: {
+      ...params,
+      ...{
+        enable: true
+      }
+    },
   });
 }
 
@@ -57,4 +62,12 @@ export async function overview() {
   return request(`${prefix}/overview`, {
     method: 'GET',
   });
+}
+
+export async function updateNotes(id, notes) {
+  return request(`${prefix}/${id}/updateNotes`, {
+    method: 'PUT',
+    data: {"notes": notes},
+  });
+
 }

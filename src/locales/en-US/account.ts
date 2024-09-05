@@ -1,9 +1,11 @@
 export default {
+  'account': 'Account',
   'account.type': 'Account Type',
   'checking.account': 'Checking Account',
   'credit.account': 'Credit Account',
   'debt.account': 'Debt Account',
   'asset.account': 'Asset Account',
+  'account.rate': 'Rate',
 
   'account.label.balance': 'Current Balance',
   'account.label.currencyCode': 'Currency',
@@ -22,5 +24,11 @@ export default {
   'total.balance': 'Total Balance',
   'total.limit': 'Total Limit',
   'total.remain.limit': 'Total Remain Limit',
+
+  'account.refresh.currency': 'Refresh Currency',
+  'account.audit': 'Audit',
+  'currency.description': 'Description',
+  'currency.base': 'Base Currency',
+  'currency.update': 'Change Rate',
 
 }

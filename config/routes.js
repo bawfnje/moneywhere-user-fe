@@ -50,6 +50,11 @@ export default [
         component: './reports/ExpenseTag',
       },
       {
+        name: 'expense.payee',
+        path: '/report/expense-payee',
+        component: './reports/ExpensePayee',
+      },
+      {
         name: 'income.category',
         path: '/report/income-category',
         component: './reports/IncomeCategory',
@@ -58,6 +63,11 @@ export default [
         name: 'income.tag',
         path: '/report/income-tag',
         component: './reports/IncomeTag',
+      },
+      {
+        name: 'income.payee',
+        path: '/report/income-payee',
+        component: './reports/IncomePayee',
       },
     ],
   },
@@ -99,14 +109,26 @@ export default [
     component: './BookTemplates',
   },
   {
+    path: '/currency',
+    name: 'currency',
+    icon: 'dollar',
+    component: './Currency',
+  },
+  {
     path: '/note-days',
     name: 'noteDays',
     component: './NoteDay',
     icon: 'book',
   },
   {
+    path: '/trash',
+    name: 'trash',
+    component: './Trash',
+    icon: 'delete',
+  },
+  {
     path: '/',
-    redirect: '/report',
+    redirect: '/statement',
   },
   {
     path: '*',

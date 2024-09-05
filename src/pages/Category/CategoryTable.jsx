@@ -1,18 +1,17 @@
-import { Button, Modal } from 'antd';
+import { Button } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import { ProTable } from '@ant-design/pro-components';
-import { useIntl, useModel } from '@umijs/max';
-import { query, remove, toggle } from '@/services/common';
+import { useModel } from '@umijs/max';
+import { query1, toggle } from '@/services/common';
+import TrashButton from "@/components/TrashButton";
 import { tableProp } from '@/utils/prop';
-import MySwitch from '@/components/MySwitch';
 import CategoryForm from './CategoryForm';
+import {tableSortFormat} from "@/utils/util";
 import t from '@/utils/i18n';
 
 export default ({ type, actionRef }) => {
 
-  const intl = useIntl();
   const { show } = useModel('modal');
-  const { bookId } = useModel('Category.model');
 
   const addHandler = (record) => {
     show(<CategoryForm type={type} actionRef={actionRef} />, 1, record)
@@ -26,18 +25,9 @@ export default ({ type, actionRef }) => {
     actionRef.current?.reload();
   }
 
-  const deleteHandler = (record) => {
-    const messageConfirm = intl.formatMessage(
-      { id: 'delete.confirm' },
-      { name: record.name },
-    );
-    Modal.confirm({
-      title: messageConfirm,
-      onOk: async () => {
-        await remove('categories', record.id);
-        successHandler();
-      },
-    });
+  const trashHandler = async (record) => {
+    await toggle('categories', record.id);
+    successHandler();
   };
 
   const columns = [
@@ -52,22 +42,10 @@ export default ({ type, actionRef }) => {
       hideInSearch: true,
     },
     {
-      title: t('label.enable'),
-      dataIndex: 'enable',
-      valueType: 'select',
-      fieldProps: {
-        options: [
-          { label: t('yes'), value: true },
-          { label: t('no'), value: false },
-        ],
-      },
-      render: (_, record) => (
-        <MySwitch
-          value={record.enable}
-          request={() => toggle('categories', record.id)}
-          onSuccess={successHandler}
-        />
-      ),
+      title: t('sort'),
+      dataIndex: 'sort',
+      sorter: true,
+      hideInSearch: true,
     },
     {
       title: t('operation'),
@@ -86,12 +64,7 @@ export default ({ type, actionRef }) => {
         >
           {t('add')}
         </Button>,
-        <Button
-          type="link"
-          onClick={() => deleteHandler(record)}
-        >
-          {t('delete')}
-        </Button>,
+        <TrashButton onClick={() => trashHandler(record)} />,
       ],
     },
   ];
@@ -108,8 +81,8 @@ export default ({ type, actionRef }) => {
         </Button>,
       ]}
       columns={columns}
-      request={(params = {}, __, _) => {
-        return query('categories', { ...params, ...{ bookId: bookId, type: type }});
+      request={(params = {}, sort, _) => {
+        return query1('categories', { ...params, ...{ type: type }, ...{ sort: tableSortFormat(sort) } });
       }}
     />
   );

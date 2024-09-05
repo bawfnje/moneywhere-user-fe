@@ -15,7 +15,6 @@ export default () => {
 
   const { actionRef } = useModel('Group.model');
   const { show } = useModel('modal');
-  const { initialState, setInitialState } = useModel('@@initialState');
 
   function successHandler() {
     actionRef.current?.reload();
@@ -64,13 +63,7 @@ export default () => {
 
   const setDefaultHandler = async (record) => {
     await setDefaultGroup(record.id);
-    // window.location.reload();
-    const response = await initialState.fetchUserInfo();
-    setInitialState(prevState => ({
-      ...prevState,
-      currentBook: response.book,
-    }));
-    successHandler();
+    window.location.reload();
   };
 
   const columns = [
@@ -85,6 +78,11 @@ export default () => {
     {
       title: t('group.label.role'),
       dataIndex: 'role',
+    },
+    {
+      title: t('group.label.default.book'),
+      dataIndex: 'defaultBook',
+      render: (_, record) => record.defaultBook?.name,
     },
     {
       title: t('label.notes'),
@@ -117,7 +115,7 @@ export default () => {
             <Button
               size="small"
               type="link"
-              disabled={record.default || !record.enable}
+              disabled={record.current}
               onClick={() => setDefaultHandler(record)}
             >
               {t('book.set.default')}
@@ -125,6 +123,7 @@ export default () => {
             <Button
               size="small"
               type="link"
+              disabled={record.roleId !== 1}
               onClick={() => updateHandler(record)}
             >
               {t('update')}
@@ -132,7 +131,7 @@ export default () => {
             <Button
               size="small"
               type="link"
-              disabled={initialState.currentGroup?.id === record.id}
+              disabled={record.current}
               onClick={() => deleteHandler(record)}
             >
               {t('delete')}

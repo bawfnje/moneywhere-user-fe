@@ -1,6 +1,6 @@
 import {useEffect, useState, useMemo, useRef} from 'react';
-import {Col, Form, Row, Space, Tabs} from 'antd';
-import {MinusCircleOutlined, PlusCircleOutlined} from '@ant-design/icons';
+import {Button, Col, Form, Input, Row, Space, Tabs, Tooltip} from 'antd';
+import {MinusCircleOutlined, PlusCircleOutlined, CalculatorOutlined} from '@ant-design/icons';
 import {
   ProFormDateTimePicker,
   ProFormSelect,
@@ -11,8 +11,9 @@ import {
 } from '@ant-design/pro-components';
 import { useModel, useRequest } from '@umijs/max';
 import moment from 'moment';
-import { translateAction, translateFlowType } from '@/utils/util';
+import {dateFormatStr1, translateAction, translateFlowType} from '@/utils/util';
 import { queryAll, create, update } from '@/services/common';
+import {rate} from "@/services/currency";
 import { treeSelectSingleProp, treeSelectMultipleProp, selectSingleProp } from '@/utils/prop';
 import { requiredRules } from '@/utils/rules';
 import MyModalForm from '@/components/MyModalForm';
@@ -46,18 +47,15 @@ export default ({ initType = 'EXPENSE' }) => {
     'canExpense': tabKey === 'EXPENSE' ? true : null,
     'canIncome': tabKey === 'INCOME' ? true : null,
     'canTransferFrom': tabKey === 'TRANSFER' ? true : null,
-    // 'keep': action === 1 ? null : currentRow.account.id,
   }), { manual: true });
 
   const { data : toAccounts = [], loading : toAccountsLoading, run : loadToAccounts} = useRequest(() => queryAll('accounts', {
     'canTransferTo': tabKey === 'TRANSFER' ? true : null,
-    // 'keep': action === 1 ? null : currentRow.to.id,
   }), { manual: true });
 
   const { data : categories = [], loading : categoriesLoading, run : loadCategories} = useRequest(() => queryAll('categories', {
     'bookId': currentBook.id,
     'type': tabKey,
-    // 'keeps': action === 1 ? [] : currentRow.categories.map(e => e.category.id),
   }), { manual: true });
 
   const { data : tags = [], loading : tagsLoading, run : loadTags} = useRequest(() => queryAll('tags', {
@@ -65,14 +63,12 @@ export default ({ initType = 'EXPENSE' }) => {
     'canExpense': tabKey === 'EXPENSE' ? true : null,
     'canIncome': tabKey === 'INCOME' ? true : null,
     'canTransfer': tabKey === 'TRANSFER' ? true : null,
-    // 'keeps': action === 1 ? [] : currentRow.tags.map(e => e.tag.id),
   }), { manual: true });
 
   const { data : books = [], loading: booksLoading, run: loadBooks } = useRequest(() => queryAll('books'), { manual: true });
 
   const [account, setAccount] = useState();
   const [toAccount, setToAccount] = useState();
-  const [confirm, setConfirm] = useState(true);
   const [initialValues, setInitialValues] = useState({});
   useEffect(() => {
     if (!visible) return;
@@ -99,7 +95,6 @@ export default ({ initType = 'EXPENSE' }) => {
         setAccount(currentBook.defaultTransferFromAccount);
         setToAccount(currentBook.defaultTransferToAccount);
       }
-      setConfirm(true);
       setInitialValues({
         book: currentBook,
         createTime: moment(),
@@ -107,13 +102,11 @@ export default ({ initType = 'EXPENSE' }) => {
         categories: categories,
         confirm: true,
         include: true,
-        updateBalance: true,
         to: initToAccount,
       });
     } else {
       setAccount(currentRow.account);
       setToAccount(currentRow.to);
-      setConfirm(currentRow.confirm);
       // 一定要深度复制
       let initialValues = JSON.parse(JSON.stringify(currentRow));
       initialValues.tags = initialValues.tags?.map((item) => item.tag);
@@ -122,7 +115,6 @@ export default ({ initType = 'EXPENSE' }) => {
         initialValues.createTime = moment();
         initialValues.confirm = true;
         initialValues.include = true;
-        setConfirm(true);
       }
       if (action === 4) {
         if (initialValues.type === 'EXPENSE' || initialValues.type === 'INCOME') {
@@ -137,7 +129,6 @@ export default ({ initType = 'EXPENSE' }) => {
           initialValues.convertedAmount = initialValues.convertedAmount * -1;
         }
       }
-      initialValues.updateBalance = true;
       setInitialValues(initialValues);
     }
   }, [action, tabKey, currentRow, currentBook, visible]);
@@ -162,6 +153,33 @@ export default ({ initType = 'EXPENSE' }) => {
     }
   }, [tabKey, account?.currencyCode, toAccount?.currencyCode, currentBook.defaultCurrencyCode]);
 
+  // 需要转换汇率，请求rate接口
+  const { data : currencyRate, loading: currencyRateLoading, run: loadCurrencyRate } = useRequest(() => rate(account.currencyCode, currencyConvert.convertCode), { manual: true });
+  useEffect(() => {
+    if (currencyConvert.needConvert) {
+      loadCurrencyRate();
+    }
+  }, [tabKey, account?.currencyCode, toAccount?.currencyCode, currentBook.defaultCurrencyCode])
+  function rateClickHandler(field) {
+    let newValues = JSON.parse(JSON.stringify(formRef.current?.getFieldsValue()));
+    let newCategory = newValues.categories[field.key];
+    if (newCategory?.amount && Number(newCategory.amount) !== 0) {
+      newValues.categories[field.key] = {
+        ...newValues.categories[field.key],
+        convertedAmount: (currencyRate * Number(newCategory.amount)).toFixed(2),
+      }
+    }
+    formRef.current?.setFieldsValue({
+      categories: newValues.categories
+    });
+  }
+  function rateClickHandler2() {
+    const amount = formRef.current?.getFieldValue('amount');
+    formRef.current?.setFieldsValue({
+      convertedAmount: (currencyRate * Number(amount)).toFixed(2)
+    });
+  }
+
   const successHandler = () => {
     actionRef.current?.reload();
   };
@@ -172,20 +190,15 @@ export default ({ initType = 'EXPENSE' }) => {
     if (form.tags) {
       form.tags = form.tags.map((i) => i?.value || i);
     }
-    form.bookId = form.book.value;
-    delete form.book;
-    form.accountId = form.account?.value;
-    delete form.account;
-    form.payeeId = form.payee?.value;
-    delete form.payee;
-    form.toId = form.to?.value;
-    delete form.to;
+    form.book = form.book.value;
+    form.account = form.account?.value;
+    form.payee = form.payee?.value;
+    form.to = form.to?.value;
     if (form.categories) {
       form.categories = form.categories.map((e) => ({
         ...e,
-        'categoryId': e.category.value,
+        'category': e.category.value,
       }));
-      form.categories.forEach(e => delete e.category);
     }
     if (action !== 2) {
       await create('balance-flows', form);
@@ -213,14 +226,16 @@ export default ({ initType = 'EXPENSE' }) => {
     if (action === 1) {
       return <Tabs activeKey={tabKey} items={items} onChange={(value) => setTabKey(value)} />;
     } else {
+      // TODO @name@code
       return translateAction(action) + translateFlowType(currentRow.type);
     }
   };
 
   const categoryLabelMsg = t('flow.label.category');
   const amountLabelMsg = t('flow.label.amount');
-  const convertCurrencyMsg = t('convertCurrency');
+  const convertCurrencyMsg = t('convertCurrency', {code: currencyConvert.convertCode});
   const placeholderRefundMsg = t('placeholder.negative.refund');
+  const currencyTooltipMsg = t('flow.currency.auto.tooltip', {rate: currencyRate})
   return (
     <>
       <MyModalForm
@@ -250,7 +265,7 @@ export default ({ initType = 'EXPENSE' }) => {
         <ProFormText name="title" label={t('flow.label.title')} />
         <ProFormDateTimePicker
           name="createTime"
-          format="YYYY-MM-DD HH:mm"
+          format={dateFormatStr1()}
           label={t('flow.label.createTime')}
           allowClear={false}
           rules={requiredRules()}
@@ -282,13 +297,24 @@ export default ({ initType = 'EXPENSE' }) => {
                 allowClear: false,
               }}
             />
-            <ProFormText name="amount" label={t('flow.label.amount')} rules={requiredRules()} />
+            <ProFormText
+              name="amount"
+              label={t('flow.label.amount')}
+              rules={requiredRules()}
+            />
             {currencyConvert.needConvert && (
-              <ProFormText
-                name="convertedAmount"
-                label={convertCurrencyMsg + currencyConvert.convertCode}
-                rules={requiredRules()}
-              />
+              <Space.Compact>
+                <Form.Item
+                  name='convertedAmount'
+                  label={convertCurrencyMsg}
+                  rules={requiredRules()}
+                >
+                  <Input />
+                </Form.Item>
+                <Tooltip title={currencyTooltipMsg}>
+                  <Button onClick={() => rateClickHandler2()} loading={currencyRateLoading} size="small" type="primary" icon={<CalculatorOutlined /> } />
+                </Tooltip>
+              </Space.Compact>
             )}
           </>
         )}
@@ -316,27 +342,36 @@ export default ({ initType = 'EXPENSE' }) => {
                         name={[field.name, 'amount']}
                         label={amountLabelMsg}
                         rules={requiredRules()}
-                        labelCol={{ span: 7 }}
+                        labelCol={{ span: 9 }}
                         placeholder={placeholderRefundMsg}
                       />
                     </Col>
                     {currencyConvert.needConvert && (
                       <Col flex="210px">
-                        <ProFormText
-                          name={[field.name, 'convertedAmount']}
-                          label={convertCurrencyMsg + currencyConvert.convertCode}
-                          rules={requiredRules()}
-                          labelCol={{ span: 10 }}
-                        />
+                        <Space.Compact>
+                          <Form.Item
+                            name={[field.name, 'convertedAmount']}
+                            label={convertCurrencyMsg}
+                            rules={requiredRules()}
+                            labelCol={{ span: 10 }}
+                          >
+                            <Input />
+                          </Form.Item>
+                          <Tooltip title={currencyTooltipMsg}>
+                            <Button onClick={() => rateClickHandler(field)} loading={currencyRateLoading} size="small" type="primary" icon={<CalculatorOutlined /> } />
+                          </Tooltip>
+                        </Space.Compact>
                       </Col>
                     )}
                     <Col flex="25px">
+                    {action !== 2 && (
                       <Space>
                         <PlusCircleOutlined onClick={() => add()} />
                         {fields.length > 1 ? (
                           <MinusCircleOutlined onClick={() => remove(field.name)} />
                         ) : null}
                       </Space>
+                    )}
                     </Col>
                   </Row>
                 ))
@@ -380,9 +415,6 @@ export default ({ initType = 'EXPENSE' }) => {
           name="confirm"
           label={t('flow.label.confirm')}
           colProps={{ xl: 6 }}
-          fieldProps={{
-            onChange: checked => setConfirm(checked)
-          }}
         />
         <ProFormSwitch name="include" label={t('flow.label.include')} colProps={{ xl: 6 }} />
         <ProFormTextArea name="notes" label={t('label.notes')} />

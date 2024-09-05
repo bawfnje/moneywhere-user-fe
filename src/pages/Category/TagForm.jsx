@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import {useModel, useRequest} from '@umijs/max';
 import {
+  ProFormDigit,
   ProFormSwitch,
   ProFormText,
   ProFormTextArea,
@@ -20,7 +21,6 @@ export default () => {
 
   const { data : tags = [], loading : tagsLoading, run : loadTags} = useRequest(() => queryAll('tags', {
     'bookId': bookId,
-    'keeps': action === 1 ? [] : currentRow.pId,
   }), { manual: true });
   useEffect(() => {
     if (visible) {
@@ -32,7 +32,7 @@ export default () => {
   useEffect(() => {
     if (action === 1) {
       setInitialValues({
-        pId: currentRow,
+        parent: currentRow,
         canExpense: true,
         canIncome: false,
         canTransfer: false,
@@ -48,7 +48,8 @@ export default () => {
 
   const requestHandler = async (values) => {
     let form = JSON.parse(JSON.stringify(values));
-    form.pId = values.pId?.value;
+    form.pId = values.parent?.value;
+    delete form.parent;
     if (action === 1) {
       await create('tags', {...form, ...{ bookId: bookId } });
     } else if (action === 2) {
@@ -65,7 +66,7 @@ export default () => {
       initialValues={initialValues}
     >
       <ProFormTreeSelect
-        name="pId"
+        name="parent"
         label={t('label.parent.tag')}
         fieldProps={{
           ...treeSelectSingleProp,
@@ -78,6 +79,7 @@ export default () => {
       <ProFormSwitch name="canIncome" label={t('label.canIncome')} colProps={{ xl: 8 }} />
       <ProFormSwitch name="canTransfer" label={t('label.canTransfer')} colProps={{ xl: 8 }} />
       <ProFormTextArea name="notes" label={t('label.notes')} />
+      <ProFormDigit name="sort" label={t('sort')} />
     </MyModalForm>
   );
 };

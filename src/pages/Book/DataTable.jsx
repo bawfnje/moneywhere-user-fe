@@ -1,21 +1,22 @@
 import {useState} from "react";
 import { Button, Modal, message } from 'antd';
 import { ProTable } from '@ant-design/pro-components';
-import { useIntl, useModel, history } from '@umijs/max';
+import {useIntl, useModel} from '@umijs/max';
 import { PlusOutlined } from '@ant-design/icons';
-import { query, remove, toggle } from '@/services/common';
-import { setDefaultBook } from '@/services/user';
+import { query1, toggle } from '@/services/common';
 import { exportFlow } from '@/services/book';
-import MySwitch from '@/components/MySwitch';
+import { setDefaultBook } from '@/services/user';
 import { tableProp } from '@/utils/prop';
 import ActionForm from './ActionForm';
+import CopyForm from "./CopyForm";
+import {tableSortFormat, timeZoneOffset} from "@/utils/util";
+import TrashButton from "@/components/TrashButton";
 import t from '@/utils/i18n';
 
 export default () => {
 
   const { actionRef } = useModel('Book.model');
   const { show } = useModel('modal');
-  const { initialState, setInitialState } = useModel('@@initialState');
 
   function successHandler() {
     actionRef.current?.reload();
@@ -30,41 +31,33 @@ export default () => {
   };
 
   const intl = useIntl();
-  const deleteHandler = (record) => {
-    const messageConfirm = intl.formatMessage(
-      { id: 'delete.confirm' },
-      { name: record.name },
-    );
-    Modal.confirm({
-      title: messageConfirm,
-      onOk: async () => {
-        await remove('books', record.id);
-        successHandler();
-      },
-    });
-  };
+
+  const copyHandler = (record) => {
+    show(<CopyForm />, 1, record);
+  }
 
   const setDefaultHandler = async (record) => {
     await setDefaultBook(record.id);
-    // window.location.reload();
-    const response = await initialState.fetchUserInfo();
-    setInitialState(prevState => ({
-      ...prevState,
-      currentBook: response.book,
-    }));
-    successHandler();
+    window.location.reload();
+  };
+
+  const trashHandler = async (record) => {
+    const res = await toggle('books', record.id);
+    if (res.success) {
+      successHandler();
+    }
   };
 
   const [exportingBook, setExportingBook] = useState();
   const exportFlowHandler = async (record) => {
     const messageFailExport = intl.formatMessage({ id: 'book.export.fail' });
-    const messageConfirmExport = intl.formatMessage({ id: 'book.export.confirm' });
+    const messageConfirmExport = intl.formatMessage({ id: 'confirm.msg' });
     Modal.confirm({
       title: messageConfirmExport,
       onOk: async () => {
         setExportingBook(record);
         try {
-          const response = await exportFlow(record.id);
+          const response = await exportFlow(record.id, timeZoneOffset());
           if (response.type === 'application/json') {
             let reader = new FileReader()
             reader.onload = e => {
@@ -110,6 +103,13 @@ export default () => {
     {
       title: t('account.label.currencyCode'),
       dataIndex: 'defaultCurrencyCode',
+      sorter: true,
+      hideInSearch: true,
+    },
+    {
+      title: t('sort'),
+      dataIndex: 'sort',
+      sorter: true,
       hideInSearch: true,
     },
     {
@@ -149,25 +149,6 @@ export default () => {
       hideInSearch: true,
     },
     {
-      title: t('label.enable'),
-      dataIndex: 'enable',
-      valueType: 'select',
-      fieldProps: {
-        options: [
-          { label: t('yes'), value: true },
-          { label: t('no'), value: false },
-        ],
-      },
-      render: (_, record) => (
-        <MySwitch
-          disabled={initialState.currentBook?.id === record.id}
-          value={record.enable}
-          request={() => toggle('books', record.id)}
-          onSuccess={successHandler}
-        />
-      ),
-    },
-    {
       title: t('operation'),
       align: 'center',
       hideInSearch: true,
@@ -175,7 +156,7 @@ export default () => {
         <Button
           size="small"
           type="link"
-          disabled={record.default || !record.enable}
+          disabled={record.current || !record.enable}
           onClick={() => setDefaultHandler(record)}
         >
           {t('book.set.default')}
@@ -190,25 +171,18 @@ export default () => {
         <Button
           size="small"
           type="link"
-          onClick={() => history.push(`/categories?bookId=${record.id}&bookName=${record.name}`, { book: record })}
-        >
-          {t('book.config')}
-        </Button>,
-        <Button
-          size="small"
-          type="link"
           loading={record.id === exportingBook?.id}
           onClick={() => exportFlowHandler(record)}
         >
           {t('book.export')}
         </Button>,
+        <TrashButton onClick={() => trashHandler(record)} disabled={record.current || record.groupDefault} />,
         <Button
           size="small"
           type="link"
-          disabled={initialState.currentBook?.id === record.id}
-          onClick={() => deleteHandler(record)}
+          onClick={ () => copyHandler(record) }
         >
-          {t('delete')}
+          {t('copy')}
         </Button>,
       ],
     },
@@ -242,7 +216,7 @@ export default () => {
           expandedRowRender: (record) => expandedRowRender(record),
           rowExpandable: (record) => expandedRowRender(record),
         }}
-        request={ (params = {}, __, _) => query('books', { ...params}) }
+        request={ (params = {}, sort, _) => query1('books', { ...params, ...{ sort: tableSortFormat(sort) } }) }
       />
     </>
   );

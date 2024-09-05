@@ -8,11 +8,11 @@ import {
   QueryFilter,
 } from '@ant-design/pro-components';
 import {useModel, useRequest} from "@umijs/max";
-import moment from 'moment/moment';
 import {selectMultipleProp, selectSingleProp, treeSelectMultipleProp} from '@/utils/prop';
 import {datePickerRanges} from '@/utils/util';
 import { queryAll } from '@/services/common';
 import {requiredRules} from "@/utils/rules";
+import moment from 'moment/moment';
 import t from '@/utils/i18n';
 
 // type是支出和收入，cat是分类还是标签
@@ -38,6 +38,8 @@ export default ({ type, run }) => {
     'canIncome': type === 'INCOME' ? true : null,
   }), { manual: true });
 
+  const { data : accounts = [], loading : accountsLoading, run : loadAccounts} = useRequest(() => queryAll('accounts'), { manual: true });
+
   useEffect(() => {
     if (initialState.currentBook?.id) {
       formRef.current?.submit();
@@ -51,14 +53,16 @@ export default ({ type, run }) => {
         defaultCollapsed={false}
         onFinish={(values) => {
           let form = JSON.parse(JSON.stringify(values));
-          form.bookId = values.bookId.id;
-          if (values.categories) form.categories = values.categories.map((i) => i?.value || i);
-          if (values.tags) form.tags = values.tags.map((i) => i?.value || i);
+          form.book = values.book?.value;
+          form.account = values.account?.value;
+          if (values.payees && values.payees.length > 0) form.payees = values.payees.map((i) => i?.id || i);
+          if (values.categories && values.categories.length > 0) form.categories = values.categories.map((i) => i?.value || i);
+          if (values.tags && values.tags.length > 0) form.tags = values.tags.map((i) => i?.value || i);
           run(form);
         }}
       >
         <ProFormSelect
-          name="bookId"
+          name="book"
           label={t('flow.label.book')}
           rules={requiredRules()}
           onChange={(_, option) => {
@@ -117,6 +121,16 @@ export default ({ type, run }) => {
             options: tags,
             onFocus: loadTags,
             // treeCheckStrictly: cat === 2,
+          }}
+        />
+        <ProFormSelect
+          name="account"
+          label={t('flow.label.account')}
+          fieldProps={{
+            ...selectSingleProp,
+            options: accounts,
+            loading: accountsLoading,
+            onFocus: loadAccounts,
           }}
         />
       </QueryFilter>

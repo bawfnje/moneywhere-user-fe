@@ -23,10 +23,17 @@ export default {
   'flow.total.income': 'Total Income',
   'flow.total.surplus': 'Surplus',
 
-  'delete.confirm.balance': 'Are you sure you want to delete this transaction? It will also change your account balance.',
+  'delete.confirm.balance': 'Are you sure? It will also change roll back account balance.',
   'update.tag.amount': 'Change Tag Amount',
   'flow.label.tag.amount': 'Tag Amount',
 
   'placeholder.negative.refund': 'Negative number is refund',
+
+  'flow.operation.file': 'File',
+  'flow.file.size.error': 'Too Large',
+  'flow.currency.auto.tooltip': 'Convert，Currency：{rate}',
+  'flow.search.has.file': 'Has File',
+  'flow.search.label.category.check.strictly': 'Category Checked With children',
+  'flow.search.label.tag.check.strictly': 'Tag Checked With children',
 
 }
